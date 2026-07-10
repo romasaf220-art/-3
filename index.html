@@ -3,40 +3,113 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEON DRIFT v2.0</title>
+    <title>NEON DRIFT: GARAGE</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #111; font-family: monospace; color: white; touch-action: none; }
+        :root { --bg: #0f172a; --accent: #38bdf8; --gold: #fbbf24; --text: #fff; }
+        body { margin: 0; overflow: hidden; background: var(--bg); font-family: 'Segoe UI', sans-serif; color: var(--text); touch-action: none; }
         canvas { display: block; }
-        #ui { position: absolute; top: 20px; left: 20px; pointer-events: none; }
-        .stat { font-size: 24px; font-weight: bold; text-shadow: 0 0 10px rgba(0,255,255,0.5); }
-        #menu { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; background: rgba(0,0,0,0.8); padding: 40px; border-radius: 10px; border: 2px solid #0ff; }
-        button { background: #0ff; border: none; padding: 15px 30px; font-size: 20px; cursor: pointer; font-weight: bold; margin-top: 20px; }
-        button:hover { background: #fff; box-shadow: 0 0 20px #0ff; }
+        
+        /* UI Overlay */
+        #ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; }
+        .hud { display: flex; justify-content: space-between; font-size: 1.5em; font-weight: bold; text-shadow: 0 0 10px rgba(0,0,0,0.5); }
+        .currency { color: var(--gold); }
+        
+        /* Menus */
+        .menu { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(15, 23, 42, 0.95); padding: 40px; border-radius: 20px; border: 2px solid var(--accent); text-align: center; pointer-events: auto; min-width: 300px; box-shadow: 0 0 50px rgba(56, 189, 248, 0.2); }
+        .hidden { display: none !important; }
+        
+        h1 { margin-bottom: 20px; color: var(--accent); text-transform: uppercase; letter-spacing: 2px; }
+        button { background: var(--accent); color: #000; border: none; padding: 12px 24px; font-size: 1.1em; font-weight: bold; border-radius: 8px; cursor: pointer; margin: 10px; transition: 0.2s; width: 100%; }
+        button:hover { transform: scale(1.05); box-shadow: 0 0 20px var(--accent); }
+        button.secondary { background: transparent; border: 2px solid var(--accent); color: var(--accent); }
+        
+        /* Garage Grid */
+        .garage-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 20px 0; }
+        .skin-card { background: rgba(255,255,255,0.05); padding: 10px; border-radius: 10px; cursor: pointer; border: 2px solid transparent; transition: 0.2s; }
+        .skin-card.active { border-color: var(--gold); background: rgba(251, 191, 36, 0.1); }
+        .skin-card.locked { opacity: 0.5; filter: grayscale(1); }
+        .skin-preview { height: 40px; width: 20px; margin: 0 auto 5px; border-radius: 4px; box-shadow: 0 0 10px currentColor; }
+        
+        /* Upgrades List */
+        .upg-item { display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.05); padding: 10px; margin-bottom: 8px; border-radius: 8px; }
+        .upg-info { text-align: left; }
+        .upg-name { font-weight: bold; font-size: 0.9em; }
+        .upg-lvl { font-size: 0.7em; color: #94a3b8; }
     </style>
 </head>
 <body>
-    <div id="ui">
-        <div class="stat">DIST: <span id="distVal">0</span>m</div>
-        <div class="stat" style="color:#ff0">DATA: <span id="dataVal">0</span></div>
+
+<canvas id="c"></canvas>
+
+<div id="ui">
+    <div class="hud">
+        <div>DIST: <span id="distVal">0</span>m</div>
+        <div class="currency">💰 <span id="moneyVal">0</span></div>
     </div>
-    <div id="menu">
-        <h1>NEON DRIFT</h1>
-        <p>Уворачивайся от красных блоков. Собирай синие пакеты.</p>
-        <button onclick="startGame()">START</button>
-    </div>
-    <canvas id="c"></canvas>
+</div>
+
+<!-- Main Menu -->
+<div id="mainMenu" class="menu">
+    <h1>Neon Drift</h1>
+    <button onclick="startGame()">START RACE</button>
+    <button class="secondary" onclick="showGarage()">GARAGE & SHOP</button>
+</div>
+
+<!-- Garage -->
+<div id="garageMenu" class="menu hidden">
+    <h1>GARAGE</h1>
+    
+    <h3>SKINS</h3>
+    <div class="garage-grid" id="skinsList"></div>
+    
+    <h3>UPGRADES</h3>
+    <div id="upgradesList"></div>
+    
+    <button class="secondary" onclick="showMain()">BACK</button>
+</div>
+
+<!-- Game Over -->
+<div id="gameOverMenu" class="menu hidden">
+    <h1 style="color:#f43f5e">CRASHED</h1>
+    <p>Earned: <span id="earnedVal" class="currency">0</span> 💰</p>
+    <button onclick="startGame()">RETRY</button>
+    <button class="secondary" onclick="showGarage()">GARAGE</button>
+</div>
 
 <script>
+/** NEON DRIFT: GARAGE EDITION **/
 const c = document.getElementById('c');
 const ctx = c.getContext('2d');
 let w, h;
+
+// State
+let game = {
+    money: parseInt(localStorage.getItem('nd_money') || '0'),
+    skin: localStorage.getItem('nd_skin') || 'cyan',
+    upgrades: JSON.parse(localStorage.getItem('nd_upgrades') || '{"speed":1, "handling":1, "magnet":0}'),
+    playing: false,
+    dist: 0,
+    earned: 0
+};
+
+const skins = [
+    {id: 'cyan', color: '#38bdf8', cost: 0},
+    {id: 'lime', color: '#4ade80', cost: 500},
+    {id: 'purple', color: '#c084fc', cost: 1500},
+    {id: 'gold', color: '#fbbf24', cost: 5000}
+];
+
+const upgrades = [
+    {id: 'speed', name: 'Engine Turbo', baseCost: 100, max: 5},
+    {id: 'handling', name: 'Sport Tires', baseCost: 150, max: 5},
+    {id: 'magnet', name: 'Data Magnet', baseCost: 300, max: 3}
+];
+
 function resize() { w = c.width = window.innerWidth; h = c.height = window.innerHeight; }
 window.addEventListener('resize', resize); resize();
 
-let state = { play: false, dist: 0, data: 0, speed: 5, objs: [], particles: [] };
-let player = { x: 0, y: 0, w: 40, h: 60, vx: 0 };
+// Input
 let keys = {};
-
 document.addEventListener('keydown', e => keys[e.code] = true);
 document.addEventListener('keyup', e => keys[e.code] = false);
 c.addEventListener('touchstart', e => {
@@ -45,92 +118,202 @@ c.addEventListener('touchstart', e => {
 });
 c.addEventListener('touchend', () => keys = {});
 
+// Game Objects
+let player = { x: 0, y: 0, w: 40, h: 60, vx: 0 };
+let objs = [];
+let particles = [];
+
 function startGame() {
-    state = { play: true, dist: 0, data: 0, speed: 6, objs: [], particles: [] };
-    player.x = w/2 - 20; player.y = h - 150; player.vx = 0;
-    document.getElementById('menu').style.display = 'none';
+    game.playing = true;
+    game.dist = 0;
+    game.earned = 0;
+    objs = [];
+    particles = [];
+    player.x = w/2 - 20;
+    player.y = h - 150;
+    player.vx = 0;
+    
+    document.querySelectorAll('.menu').forEach(m => m.classList.add('hidden'));
+    updateHUD();
     loop();
 }
 
-function spawnObj() {
-    const type = Math.random() > 0.3 ? 'enemy' : 'data';
-    state.objs.push({
-        x: Math.random() * (w - 50), y: -100, w: 50, h: 50, type: type, active: true
-    });
-}
+function updatePhysics() {
+    const handling = 0.5 + (game.upgrades.handling * 0.1);
+    const maxSpeed = 6 + (game.upgrades.speed * 1.5);
+    const magnetRange = 100 + (game.upgrades.magnet * 50);
 
-function update() {
-    if (!state.play) return;
-    
-    // Player Physics
-    if (keys['ArrowLeft']) player.vx -= 0.8;
-    if (keys['ArrowRight']) player.vx += 0.8;
-    player.vx *= 0.9;
+    if (keys['ArrowLeft']) player.vx -= handling;
+    if (keys['ArrowRight']) player.vx += handling;
+    player.vx *= 0.92;
     player.x += player.vx;
-    if (player.x < 0) player.x = 0;
-    if (player.x > w - player.w) player.x = w - player.w;
+    
+    // Bounds
+    if(player.x < 0) player.x = 0;
+    if(player.x > w - player.w) player.x = w - player.w;
 
-    // Game Progress
-    state.speed += 0.005;
-    state.dist += state.speed / 10;
-    if (Math.random() < 0.03) spawnObj();
+    // Progress
+    let speed = 5 + (game.dist / 1000);
+    if(speed > maxSpeed) speed = maxSpeed;
+    game.dist += speed / 10;
+    
+    // Spawning
+    if(Math.random() < 0.03) {
+        const type = Math.random() > 0.3 ? 'enemy' : 'coin';
+        objs.push({ x: Math.random()*(w-50), y: -100, w: 50, h: 50, type: type, active: true });
+    }
 
-    // Objects
-    state.objs.forEach(o => {
-        o.y += state.speed;
+    // Objects Logic
+    objs.forEach(o => {
+        o.y += speed;
+        
+        // Magnet effect
+        if(o.type === 'coin' && game.upgrades.magnet > 0) {
+            let dx = (player.x + 20) - (o.x + 25);
+            let dy = (player.y + 30) - (o.y + 25);
+            let dist = Math.sqrt(dx*dx + dy*dy);
+            if(dist < magnetRange) {
+                o.x += dx * 0.05;
+                o.y += dy * 0.05;
+            }
+        }
+
         // Collision
-        if (o.active && player.x < o.x + o.w && player.x + player.w > o.x && player.y < o.y + o.h && player.y + player.h > o.y) {
-            if (o.type === 'data') {
-                state.data++;
+        if(o.active && player.x < o.x+o.w && player.x+player.w > o.x && player.y < o.y+o.h && player.y+player.h > o.y) {
+            if(o.type === 'coin') {
+                game.earned += 10;
                 o.active = false;
             } else {
                 gameOver();
             }
         }
     });
-    state.objs = state.objs.filter(o => o.y < h && o.active);
-
-    document.getElementById('distVal').innerText = Math.floor(state.dist);
-    document.getElementById('dataVal').innerText = state.data;
+    objs = objs.filter(o => o.y < h && o.active);
 }
 
 function draw() {
-    ctx.fillStyle = '#111';
+    ctx.fillStyle = '#0f172a';
     ctx.fillRect(0, 0, w, h);
     
-    // Road lines
-    ctx.strokeStyle = '#333';
+    // Road
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 4;
     ctx.setLineDash([40, 40]);
-    ctx.lineDashOffset = -state.dist * 10;
+    ctx.lineDashOffset = -game.dist * 10;
     ctx.beginPath(); ctx.moveTo(w/2, 0); ctx.lineTo(w/2, h); ctx.stroke();
 
     // Player
-    ctx.fillStyle = '#0ff';
-    ctx.shadowBlur = 20; ctx.shadowColor = '#0ff';
+    const skinColor = skins.find(s => s.id === game.skin)?.color || '#fff';
+    ctx.fillStyle = skinColor;
+    ctx.shadowBlur = 20; ctx.shadowColor = skinColor;
     ctx.fillRect(player.x, player.y, player.w, player.h);
     ctx.shadowBlur = 0;
 
     // Objects
-    state.objs.forEach(o => {
-        ctx.fillStyle = o.type === 'enemy' ? '#f05' : '#0af';
+    objs.forEach(o => {
+        ctx.fillStyle = o.type === 'enemy' ? '#f43f5e' : '#fbbf24';
         ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 10;
-        ctx.fillRect(o.x, o.y, o.w, o.h);
+        if(o.type === 'coin') {
+            ctx.beginPath(); ctx.arc(o.x+25, o.y+25, 20, 0, Math.PI*2); ctx.fill();
+        } else {
+            ctx.fillRect(o.x, o.y, o.w, o.h);
+        }
     });
     ctx.shadowBlur = 0;
 }
 
 function loop() {
-    if (!state.play) return;
-    update();
+    if(!game.playing) return;
+    updatePhysics();
     draw();
+    updateHUD();
     requestAnimationFrame(loop);
 }
 
 function gameOver() {
-    state.play = false;
-    document.getElementById('menu').style.display = 'block';
-    document.querySelector('#menu h1').innerText = "CRASHED!";
+    game.playing = false;
+    game.money += game.earned;
+    saveGame();
+    document.getElementById('earnedVal').innerText = game.earned;
+    document.getElementById('gameOverMenu').classList.remove('hidden');
 }
+
+function saveGame() {
+    localStorage.setItem('nd_money', game.money);
+    localStorage.setItem('nd_skin', game.skin);
+    localStorage.setItem('nd_upgrades', JSON.stringify(game.upgrades));
+}
+
+// UI Functions
+function updateHUD() {
+    document.getElementById('distVal').innerText = Math.floor(game.dist);
+    document.getElementById('moneyVal').innerText = game.money;
+}
+
+function showGarage() {
+    document.querySelectorAll('.menu').forEach(m => m.classList.add('hidden'));
+    document.getElementById('garageMenu').classList.remove('hidden');
+    renderGarage();
+}
+
+function showMain() {
+    document.querySelectorAll('.menu').forEach(m => m.classList.add('hidden'));
+    document.getElementById('mainMenu').classList.remove('hidden');
+}
+
+function renderGarage() {
+    // Skins
+    const sList = document.getElementById('skinsList');
+    sList.innerHTML = '';
+    skins.forEach(s => {
+        const owned = game.skin === s.id || game.money >= s.cost; // Simplified logic for demo
+        const div = document.createElement('div');
+        div.className = `skin-card ${game.skin === s.id ? 'active' : ''}`;
+        div.innerHTML = `<div class="skin-preview" style="background:${s.color}"></div><div>${s.cost === 0 ? 'FREE' : s.cost + '💰'}</div>`;
+        div.onclick = () => {
+            if(game.money >= s.cost || s.cost === 0) {
+                if(game.money >= s.cost) game.money -= s.cost;
+                game.skin = s.id;
+                saveGame();
+                renderGarage();
+            }
+        };
+        sList.appendChild(div);
+    });
+
+    // Upgrades
+    const uList = document.getElementById('upgradesList');
+    uList.innerHTML = '';
+    upgrades.forEach(u => {
+        const lvl = game.upgrades[u.id];
+        const cost = Math.floor(u.baseCost * Math.pow(1.5, lvl));
+        const div = document.createElement('div');
+        div.className = 'upg-item';
+        div.innerHTML = `
+            <div class="upg-info">
+                <div class="upg-name">${u.name}</div>
+                <div class="upg-lvl">LVL ${lvl}/${u.max}</div>
+            </div>
+            <button style="width:auto; padding:5px 15px; margin:0;" ${lvl >= u.max || game.money < cost ? 'disabled' : ''} onclick="buyUpgrade('${u.id}', ${cost})">
+                ${lvl >= u.max ? 'MAX' : cost + '💰'}
+            </button>
+        `;
+        uList.appendChild(div);
+    });
+    document.getElementById('moneyVal').innerText = game.money;
+}
+
+function buyUpgrade(id, cost) {
+    if(game.money >= cost) {
+        game.money -= cost;
+        game.upgrades[id]++;
+        saveGame();
+        renderGarage();
+    }
+}
+
+// Init
+updateHUD();
 </script>
 </body>
 </html>
