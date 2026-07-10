@@ -3,87 +3,134 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ROM'S GAME HUB</title>
+    <title>NEON DRIFT v2.0</title>
     <style>
-        :root { --bg: #f1f5f9; --sidebar: #ffffff; --text: #0f172a; --accent: #3b82f6; --active: #eff6ff; }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
-        body { background: var(--bg); height: 100vh; display: flex; overflow: hidden; }
-        
-        /* Sidebar */
-        .sidebar { width: 280px; background: var(--sidebar); border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; padding: 20px; z-index: 10; box-shadow: 2px 0 10px rgba(0,0,0,0.02); }
-        .logo { font-size: 1.5em; font-weight: 800; color: var(--text); margin-bottom: 30px; padding-left: 10px; border-left: 4px solid var(--accent); }
-        
-        .menu-item { padding: 15px; margin-bottom: 10px; border-radius: 10px; cursor: pointer; transition: 0.2s; color: #64748b; font-weight: 600; display: flex; align-items: center; gap: 10px; }
-        .menu-item:hover { background: #f8fafc; color: var(--text); }
-        .menu-item.active { background: var(--active); color: var(--accent); border-left: 3px solid var(--accent); }
-        
-        /* Main Area */
-        .main-content { flex: 1; position: relative; background: #000; }
-        iframe { width: 100%; height: 100%; border: none; display: block; }
-        
-        /* Placeholder for broken games */
-        .placeholder { position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--bg); color: var(--text); z-index: 5; }
-        .hidden { display: none; }
-        
-        @media (max-width: 768px) {
-            body { flex-direction: column; }
-            .sidebar { width: 100%; height: auto; flex-direction: row; overflow-x: auto; padding: 10px; border-bottom: 1px solid #e2e8f0; border-right: none; }
-            .logo { display: none; }
-            .menu-item { white-space: nowrap; margin-bottom: 0; margin-right: 10px; }
-        }
+        body { margin: 0; overflow: hidden; background: #111; font-family: monospace; color: white; touch-action: none; }
+        canvas { display: block; }
+        #ui { position: absolute; top: 20px; left: 20px; pointer-events: none; }
+        .stat { font-size: 24px; font-weight: bold; text-shadow: 0 0 10px rgba(0,255,255,0.5); }
+        #menu { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; background: rgba(0,0,0,0.8); padding: 40px; border-radius: 10px; border: 2px solid #0ff; }
+        button { background: #0ff; border: none; padding: 15px 30px; font-size: 20px; cursor: pointer; font-weight: bold; margin-top: 20px; }
+        button:hover { background: #fff; box-shadow: 0 0 20px #0ff; }
     </style>
 </head>
 <body>
-
-<div class="sidebar">
-    <div class="logo">ROM'S HUB</div>
-    
-    <div class="menu-item active" onclick="loadGame('https://romasaf220-art.github.io/-/', this)">
-        🔥 THE LEGEND (-/)
+    <div id="ui">
+        <div class="stat">DIST: <span id="distVal">0</span>m</div>
+        <div class="stat" style="color:#ff0">DATA: <span id="dataVal">0</span></div>
     </div>
-    
-    <div class="menu-item" onclick="loadGame('https://romasaf220-art.github.io/-224/', this)">
-        💻 CYBER-IDLE v3.0
+    <div id="menu">
+        <h1>NEON DRIFT</h1>
+        <p>Уворачивайся от красных блоков. Собирай синие пакеты.</p>
+        <button onclick="startGame()">START</button>
     </div>
-    
-    <div class="menu-item" onclick="showPlaceholder('Neon Drift')">
-        🏎️ NEON DRIFT
-    </div>
-</div>
-
-<div class="main-content">
-    <div id="placeholderScreen" class="placeholder hidden">
-        <h2 id="phTitle">Выберите игру</h2>
-        <p style="color: #64748b; margin-top: 10px;">Нажмите на проект в меню слева</p>
-    </div>
-    <iframe id="gameFrame" src="" allow="fullscreen"></iframe>
-</div>
+    <canvas id="c"></canvas>
 
 <script>
-    function loadGame(url, element) {
-        // Update UI
-        document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
-        if(element) element.classList.add('active');
-        
-        // Hide placeholder and load game
-        document.getElementById('placeholderScreen').classList.add('hidden');
-        document.getElementById('gameFrame').src = url;
-    }
+const c = document.getElementById('c');
+const ctx = c.getContext('2d');
+let w, h;
+function resize() { w = c.width = window.innerWidth; h = c.height = window.innerHeight; }
+window.addEventListener('resize', resize); resize();
 
-    function showPlaceholder(name) {
-        document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
-        document.getElementById('gameFrame').src = "";
-        const ph = document.getElementById('placeholderScreen');
-        ph.classList.remove('hidden');
-        document.getElementById('phTitle').innerText = name + " (В разработке)";
-    }
+let state = { play: false, dist: 0, data: 0, speed: 5, objs: [], particles: [] };
+let player = { x: 0, y: 0, w: 40, h: 60, vx: 0 };
+let keys = {};
 
-    // Load first game by default
-    window.onload = () => {
-        const firstBtn = document.querySelector('.menu-item');
-        if(firstBtn) firstBtn.click();
-    }
+document.addEventListener('keydown', e => keys[e.code] = true);
+document.addEventListener('keyup', e => keys[e.code] = false);
+c.addEventListener('touchstart', e => {
+    if(e.touches[0].clientX < w/2) keys['ArrowLeft'] = true;
+    else keys['ArrowRight'] = true;
+});
+c.addEventListener('touchend', () => keys = {});
+
+function startGame() {
+    state = { play: true, dist: 0, data: 0, speed: 6, objs: [], particles: [] };
+    player.x = w/2 - 20; player.y = h - 150; player.vx = 0;
+    document.getElementById('menu').style.display = 'none';
+    loop();
+}
+
+function spawnObj() {
+    const type = Math.random() > 0.3 ? 'enemy' : 'data';
+    state.objs.push({
+        x: Math.random() * (w - 50), y: -100, w: 50, h: 50, type: type, active: true
+    });
+}
+
+function update() {
+    if (!state.play) return;
+    
+    // Player Physics
+    if (keys['ArrowLeft']) player.vx -= 0.8;
+    if (keys['ArrowRight']) player.vx += 0.8;
+    player.vx *= 0.9;
+    player.x += player.vx;
+    if (player.x < 0) player.x = 0;
+    if (player.x > w - player.w) player.x = w - player.w;
+
+    // Game Progress
+    state.speed += 0.005;
+    state.dist += state.speed / 10;
+    if (Math.random() < 0.03) spawnObj();
+
+    // Objects
+    state.objs.forEach(o => {
+        o.y += state.speed;
+        // Collision
+        if (o.active && player.x < o.x + o.w && player.x + player.w > o.x && player.y < o.y + o.h && player.y + player.h > o.y) {
+            if (o.type === 'data') {
+                state.data++;
+                o.active = false;
+            } else {
+                gameOver();
+            }
+        }
+    });
+    state.objs = state.objs.filter(o => o.y < h && o.active);
+
+    document.getElementById('distVal').innerText = Math.floor(state.dist);
+    document.getElementById('dataVal').innerText = state.data;
+}
+
+function draw() {
+    ctx.fillStyle = '#111';
+    ctx.fillRect(0, 0, w, h);
+    
+    // Road lines
+    ctx.strokeStyle = '#333';
+    ctx.setLineDash([40, 40]);
+    ctx.lineDashOffset = -state.dist * 10;
+    ctx.beginPath(); ctx.moveTo(w/2, 0); ctx.lineTo(w/2, h); ctx.stroke();
+
+    // Player
+    ctx.fillStyle = '#0ff';
+    ctx.shadowBlur = 20; ctx.shadowColor = '#0ff';
+    ctx.fillRect(player.x, player.y, player.w, player.h);
+    ctx.shadowBlur = 0;
+
+    // Objects
+    state.objs.forEach(o => {
+        ctx.fillStyle = o.type === 'enemy' ? '#f05' : '#0af';
+        ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 10;
+        ctx.fillRect(o.x, o.y, o.w, o.h);
+    });
+    ctx.shadowBlur = 0;
+}
+
+function loop() {
+    if (!state.play) return;
+    update();
+    draw();
+    requestAnimationFrame(loop);
+}
+
+function gameOver() {
+    state.play = false;
+    document.getElementById('menu').style.display = 'block';
+    document.querySelector('#menu h1').innerText = "CRASHED!";
+}
 </script>
-
 </body>
 </html>
