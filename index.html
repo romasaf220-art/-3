@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NEON DRIFT: DATA RUNNER v1.1</title>
+    <title>NEON DRIFT: DATA RUNNER v1.2</title>
     <style>
         :root { --bg: #050505; --accent: #00ff9d; --warn: #ff0055; --data: #00ccff; --text: #fff; }
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
@@ -45,7 +45,7 @@
     </div>
 
     <div class="center-msg" id="startScreen">
-        <h1 style="font-size: 2em; margin-bottom: 10px; text-shadow: 0 0 20px var(--accent);">NEON DRIFT v1.1</h1>
+        <h1 style="font-size: 2em; margin-bottom: 10px; text-shadow: 0 0 20px var(--accent);">NEON DRIFT v1.2</h1>
         <p style="margin-bottom: 10px; color: #aaa;">COLLECT DATA PACKETS. AVOID FIREWALLS.</p>
         <p style="margin-bottom: 20px; font-size: 0.8em; color: #666;">USE [←] [→] ARROWS OR TAP SIDES</p>
         <button class="btn-start" onclick="startGame()">START ENGINE</button>
@@ -66,7 +66,7 @@
 </div>
 
 <script>
-/** NEON DRIFT ENGINE v1.1 - BALANCED & WITH PACKETS **/
+/** NEON DRIFT ENGINE v1.2 - FIXED CRASH & SPAWN LOGIC **/
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 let width, height;
@@ -77,12 +77,13 @@ let state = {
     dist: 0,
     dataCollected: 0,
     speed: 0,
-    baseSpeed: 6, // Slower start
-    maxSpeed: 12,
+    baseSpeed: 5, // Even slower start for better control
+    maxSpeed: 15,
     bestDist: parseInt(localStorage.getItem('neon_drift_best') || '0'),
     obstacles: [],
     particles: [],
-    roadOffset: 0
+    roadOffset: 0,
+    frameCount: 0
 };
 
 const input = { left: false, right: false };
@@ -128,6 +129,7 @@ class Particle {
 
 function spawnTrail(x, y) { state.particles.push(new Particle(x, y, '#00ff9d')); }
 function spawnDataEffect(x, y) { for(let i=0; i<8; i++) state.particles.push(new Particle(x, y, '#00ccff')); }
+function spawnCrashEffect(x, y) { for(let i=0; i<20; i++) state.particles.push(new Particle(x, y, '#ff0055')); }
 
 // Objects
 class GameObject {
@@ -136,9 +138,14 @@ class GameObject {
         this.x = Math.random() * (width - this.w);
         this.y = -100;
         this.type = type; // 'firewall' or 'data'
+        this.active = true;
     }
-    update() { this.y += state.speed; }
+    update() { 
+        if (!this.active) return;
+        this.y += state.speed; 
+    }
     draw() {
+        if (!this.active) return;
         ctx.shadowBlur = 15;
         if (this.type === 'firewall') {
             ctx.shadowColor = '#ff0055'; ctx.fillStyle = '#ff0055';
@@ -157,7 +164,9 @@ class GameObject {
 }
 
 function gameLoop() {
-    if (!state.isPlaying) return;
+    if (!state.isPlaying) return; // HARD STOP on death
+
+    state.frameCount++;
 
     // Clear with trail
     ctx.fillStyle = 'rgba(5, 5, 5, 0.3)';
@@ -177,11 +186,11 @@ function gameLoop() {
     car.x += car.vx;
 
     // Boundaries
-    if (car.x < 0) { car.x = 0; car.vx = -car.vx * 0.5; } // Bounce
+    if (car.x < 0) { car.x = 0; car.vx = -car.vx * 0.5; } 
     if (car.x > width - car.width) { car.x = width - car.width; car.vx = -car.vx * 0.5; }
 
     // Speed & Distance
-    if (state.speed < state.maxSpeed) state.speed += 0.01;
+    if (state.speed < state.maxSpeed) state.speed += 0.005;
     state.dist += state.speed / 20;
 
     // Drift Trail
@@ -193,28 +202,28 @@ function gameLoop() {
     ctx.rotate(car.vx * 0.05);
     ctx.fillStyle = '#fff'; ctx.shadowBlur = 20; ctx.shadowColor = '#fff';
     ctx.fillRect(-20, -30, 40, 60);
-    // Windshield
     ctx.fillStyle = '#00ff9d'; ctx.fillRect(-15, -20, 30, 15);
     ctx.restore();
 
-    // Spawning Objects
-    if (Math.random() < 0.03) {
-        const type = Math.random() > 0.4 ? 'firewall' : 'data';
+    // Spawning Objects (Fixed Logic)
+    if (state.frameCount % 40 === 0) { // Spawn every 40 frames
+        const type = Math.random() > 0.3 ? 'firewall' : 'data';
         state.obstacles.push(new GameObject(type));
     }
 
     // Update Objects
-    state.obstacles = state.obstacles.filter(o => o.y < height + 100);
+    state.obstacles = state.obstacles.filter(o => o.y < height + 100 && o.active);
     state.obstacles.forEach(o => {
         o.update(); o.draw();
         
         // Collision Logic
-        if (car.x < o.x + o.w && car.x + car.width > o.x && car.y < o.y + o.h && car.y + car.height > o.y) {
+        if (o.active && car.x < o.x + o.w && car.x + car.width > o.x && car.y < o.y + o.h && car.y + car.height > o.y) {
             if (o.type === 'data') {
                 state.dataCollected++;
                 spawnDataEffect(o.x + 25, o.y + 25);
-                o.y = 9999; // Remove object
+                o.active = false; // Remove object
             } else {
+                spawnCrashEffect(car.x + 20, car.y + 30);
                 gameOver();
             }
         }
@@ -234,7 +243,7 @@ function gameLoop() {
 function startGame() {
     state = {
         isPlaying: true, dist: 0, dataCollected: 0, speed: state.baseSpeed,
-        maxSpeed: 14, bestDist: state.bestDist, obstacles: [], particles: [], roadOffset: 0
+        maxSpeed: 14, bestDist: state.bestDist, obstacles: [], particles: [], roadOffset: 0, frameCount: 0
     };
     car.x = width / 2 - 20; car.vx = 0;
     document.getElementById('startScreen').style.display = 'none';
@@ -243,7 +252,7 @@ function startGame() {
 }
 
 function gameOver() {
-    state.isPlaying = false;
+    state.isPlaying = false; // This stops the loop immediately
     if (state.dist > state.bestDist) {
         state.bestDist = state.dist;
         localStorage.setItem('neon_drift_best', state.bestDist.toString());
