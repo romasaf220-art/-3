@@ -2,352 +2,85 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NEON DRIFT: ULTIMATE</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEON DRIFT LITE</title>
     <style>
-        :root { --bg: #050505; --accent: #00ff9d; --gold: #ffd700; --text: #fff; }
-        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
-        body { background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; height: 100vh; overflow: hidden; touch-action: none; }
-        
-        /* CRT Effect */
-        .crt::before { content: " "; display: block; position: absolute; inset: 0; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06)); z-index: 100; background-size: 100% 2px, 3px 100%; pointer-events: none; animation: flicker 0.15s infinite; opacity: 0.6; }
-        @keyframes flicker { 0% { opacity: 0.5; } 50% { opacity: 0.7; } 100% { opacity: 0.5; } }
-
-        canvas { display: block; width: 100%; height: 100%; }
-        
-        /* UI Overlay */
-        .ui-layer { position: absolute; inset: 0; z-index: 10; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; }
-        .hud-top { display: flex; justify-content: space-between; font-size: 1.2em; font-weight: bold; text-shadow: 0 0 10px currentColor; }
-        .money-val { color: var(--gold); }
-        
-        /* Menus */
-        .menu { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(5,5,5,0.95); padding: 40px; border: 2px solid var(--accent); border-radius: 10px; text-align: center; pointer-events: auto; min-width: 320px; box-shadow: 0 0 50px rgba(0,255,157,0.2); backdrop-filter: blur(5px); }
-        .hidden { display: none !important; }
-        
-        h1 { font-size: 2em; margin-bottom: 20px; color: var(--accent); text-shadow: 0 0 20px var(--accent); letter-spacing: 3px; }
-        .btn { background: transparent; border: 2px solid var(--accent); color: var(--accent); padding: 12px 30px; font-size: 1.1em; font-family: inherit; cursor: pointer; transition: 0.2s; margin: 10px 0; width: 100%; text-transform: uppercase; font-weight: bold; }
-        .btn:hover { background: var(--accent); color: #000; box-shadow: 0 0 20px var(--accent); }
-        .btn-secondary { border-color: #666; color: #aaa; }
-        .btn-secondary:hover { background: #333; color: #fff; box-shadow: none; }
-
-        /* Garage Grid */
-        .garage-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin: 20px 0; }
-        .skin-card { background: rgba(255,255,255,0.05); border: 1px solid #333; padding: 15px; border-radius: 8px; cursor: pointer; transition: 0.2s; }
-        .skin-card:hover { border-color: var(--accent); }
-        .skin-card.active { border-color: var(--gold); background: rgba(255,215,0,0.1); box-shadow: 0 0 15px rgba(255,215,0,0.2); }
-        .skin-preview { height: 50px; width: 30px; margin: 0 auto 10px; border-radius: 5px; box-shadow: 0 0 15px currentColor; }
-        
-        /* Upgrades */
-        .upg-row { display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); padding: 12px; margin-bottom: 8px; border-radius: 5px; border: 1px solid #222; }
-        .upg-name { font-weight: bold; color: #ccc; }
-        .upg-lvl { font-size: 0.8em; color: var(--accent); }
-
-        @media (max-width: 600px) {
-            .menu { width: 90%; padding: 20px; }
-            h1 { font-size: 1.5em; }
-        }
+        body { margin: 0; overflow: hidden; background: #111; font-family: monospace; color: white; touch-action: none; }
+        canvas { display: block; }
+        #ui { position: absolute; top: 20px; left: 20px; font-size: 20px; font-weight: bold; pointer-events: none; }
+        #menu { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; background: rgba(0,0,0,0.8); padding: 30px; border-radius: 10px; border: 1px solid #0ff; }
+        button { background: #0ff; border: none; padding: 10px 20px; font-size: 18px; cursor: pointer; font-weight: bold; margin-top: 10px; }
     </style>
 </head>
-<body class="crt">
-
-<canvas id="gameCanvas"></canvas>
-
-<div class="ui-layer">
-    <div class="hud-top">
-        <div>DIST: <span id="distDisplay">0</span>m</div>
-        <div class="money-val">💰 <span id="moneyDisplay">0</span></div>
+<body>
+    <div id="ui">SCORE: <span id="score">0</span></div>
+    <div id="menu">
+        <h1>DRIFT LITE</h1>
+        <p>Тапай влево/вправо или используй стрелки</p>
+        <button onclick="start()">PLAY</button>
     </div>
-</div>
-
-<!-- Main Menu -->
-<div id="mainMenu" class="menu">
-    <h1>NEON DRIFT</h1>
-    <p style="color:#888; margin-bottom:20px;">ULTIMATE EDITION v2.0</p>
-    <button class="btn" onclick="startGame()">START ENGINE</button>
-    <button class="btn btn-secondary" onclick="showGarage()">GARAGE & SHOP</button>
-</div>
-
-<!-- Garage -->
-<div id="garageMenu" class="menu hidden">
-    <h1>GARAGE</h1>
-    <div style="margin-bottom:10px; color:var(--gold)">BALANCE: <span id="garageMoney">0</span> 💰</div>
-    
-    <h3 style="color:#888; margin:15px 0 10px; font-size:0.9em;">VEHICLES</h3>
-    <div class="garage-grid" id="skinsList"></div>
-    
-    <h3 style="color:#888; margin:15px 0 10px; font-size:0.9em;">UPGRADES</h3>
-    <div id="upgradesList"></div>
-    
-    <button class="btn btn-secondary" onclick="showMain()">BACK TO MENU</button>
-</div>
-
-<!-- Game Over -->
-<div id="gameOverMenu" class="menu hidden">
-    <h1 style="color:#ff0055; text-shadow:0 0 20px #ff0055">SYSTEM CRASH</h1>
-    <p style="margin-bottom:10px">DISTANCE: <span id="finalDist" style="color:var(--accent)">0</span>m</p>
-    <p style="margin-bottom:20px; color:var(--gold)">EARNED: +<span id="earnedMoney">0</span> 💰</p>
-    <button class="btn" onclick="startGame()">RETRY</button>
-    <button class="btn btn-secondary" onclick="showGarage()">GARAGE</button>
-</div>
+    <canvas id="c"></canvas>
 
 <script>
-/** NEON DRIFT: ULTIMATE ENGINE **/
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-let w, h;
+const c = document.getElementById('c');
+const ctx = c.getContext('2d');
+let w, h, score = 0, playing = false;
+let player = { x: 0, y: 0, w: 40, h: 60 };
+let objs = [];
+let speed = 5;
 
-// State & Save System
-let state = {
-    money: parseInt(localStorage.getItem('nd_money') || '0'),
-    skin: localStorage.getItem('nd_skin') || 'cyan',
-    upgrades: JSON.parse(localStorage.getItem('nd_upgrades') || '{"speed":1, "handling":1}'),
-    playing: false,
-    dist: 0,
-    earned: 0,
-    speed: 0,
-    baseSpeed: 8,
-    maxSpeed: 20,
-    objs: [],
-    particles: [],
-    roadOffset: 0
-};
-
-const skins = [
-    {id: 'cyan', color: '#00ff9d', cost: 0},
-    {id: 'magenta', color: '#ff00ff', cost: 1000},
-    {id: 'gold', color: '#ffd700', cost: 5000},
-    {id: 'void', color: '#ffffff', cost: 15000}
-];
-
-const upgrades = [
-    {id: 'speed', name: 'Turbo Engine', baseCost: 200, max: 5},
-    {id: 'handling', name: 'Aero Grip', baseCost: 300, max: 5}
-];
-
-function resize() { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; }
+function resize() { w = c.width = window.innerWidth; h = c.height = window.innerHeight; player.x = w/2; player.y = h - 100; }
 window.addEventListener('resize', resize); resize();
 
-// Input
-let input = { left: false, right: false };
-document.addEventListener('keydown', e => { if(e.key==='ArrowLeft') input.left=true; if(e.key==='ArrowRight') input.right=true; });
-document.addEventListener('keyup', e => { if(e.key==='ArrowLeft') input.left=false; if(e.key==='ArrowRight') input.right=false; });
-canvas.addEventListener('touchstart', e => {
-    if(e.touches[0].clientX < w/2) input.left=true; else input.right=true;
+// Управление
+document.addEventListener('keydown', e => {
+    if(e.key === 'ArrowLeft') player.x -= 40;
+    if(e.key === 'ArrowRight') player.x += 40;
 });
-canvas.addEventListener('touchend', () => input = {left:false, right:false});
+c.addEventListener('touchstart', e => {
+    if(e.touches[0].clientX < w/2) player.x -= 40;
+    else player.x += 40;
+});
 
-// Player
-const player = { x: 0, y: 0, w: 40, h: 70, vx: 0 };
-
-class Particle {
-    constructor(x, y, c, type) {
-        this.x = x; this.y = y; this.c = c; this.type = type;
-        this.vx = (Math.random()-0.5)*2; this.vy = Math.random()*2 + 2;
-        this.life = 1.0; this.size = Math.random()*3+1;
-    }
-    update() { this.x+=this.vx; this.y+=this.vy; this.life-=0.03; this.size*=0.95; }
-    draw() {
-        ctx.globalAlpha = this.life; ctx.fillStyle = this.c;
-        if(this.type === 'exhaust') ctx.fillRect(this.x, this.y, this.size, this.size*2);
-        else { ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI*2); ctx.fill(); }
-        ctx.globalAlpha = 1;
-    }
+function start() {
+    playing = true; score = 0; speed = 5; objs = [];
+    document.getElementById('menu').style.display = 'none';
+    loop();
 }
 
-function startGame() {
-    state.playing = true;
-    state.dist = 0;
-    state.earned = 0;
-    state.speed = state.baseSpeed + (state.upgrades.speed * 1.5);
-    state.objs = [];
-    state.particles = [];
-    player.x = w/2 - 20;
-    player.y = h - 150;
-    player.vx = 0;
+function loop() {
+    if(!playing) return;
     
-    document.querySelectorAll('.menu').forEach(m => m.classList.add('hidden'));
-    gameLoop();
-}
-
-function gameLoop() {
-    if(!state.playing) return;
+    // Очистка
+    ctx.fillStyle = '#111'; ctx.fillRect(0,0,w,h);
     
-    // Clear with trail effect
-    ctx.fillStyle = 'rgba(5,5,5,0.4)';
-    ctx.fillRect(0,0,w,h);
-    
-    // Road Grid
-    state.roadOffset = (state.roadOffset + state.speed) % 100;
-    ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2;
-    ctx.beginPath();
-    for(let i=0; i<w; i+=100) { ctx.moveTo(i,0); ctx.lineTo(i,h); }
-    for(let i=state.roadOffset; i<h; i+=100) { ctx.moveTo(0,i); ctx.lineTo(w,i); }
-    ctx.stroke();
-    
-    // Center Line
-    ctx.strokeStyle = '#333'; ctx.setLineDash([50,50]); ctx.lineDashOffset = -state.roadOffset;
-    ctx.beginPath(); ctx.moveTo(w/2,0); ctx.lineTo(w/2,h); ctx.stroke(); ctx.setLineDash([]);
-
-    // Physics
-    const handling = 0.6 + (state.upgrades.handling * 0.15);
-    if(input.left) player.vx -= handling;
-    if(input.right) player.vx += handling;
-    player.vx *= 0.9;
-    player.x += player.vx;
-    
-    // Bounds & Bounce
-    if(player.x < 0) { player.x = 0; player.vx = -player.vx*0.5; }
-    if(player.x > w-player.w) { player.x = w-player.w; player.vx = -player.vx*0.5; }
-    
-    // Exhaust Particles
-    if(Math.random()>0.5) state.particles.push(new Particle(player.x+10, player.y+70, '#555', 'exhaust'));
-    if(Math.random()>0.5) state.particles.push(new Particle(player.x+30, player.y+70, '#555', 'exhaust'));
-
-    // Spawning
-    if(Math.random() < 0.02 + (state.dist/10000)) {
-        const type = Math.random() > 0.3 ? 'obstacle' : 'coin';
-        state.objs.push({ x: Math.random()*(w-60)+30, y: -100, w: 60, h: 60, type: type, active: true });
-    }
-
-    // Objects Logic
-    state.objs.forEach(o => {
-        o.y += state.speed;
-        
-        // Collision
-        if(o.active && player.x < o.x+o.w && player.x+player.w > o.x && player.y < o.y+o.h && player.y+player.h > o.y) {
-            if(o.type === 'coin') {
-                state.earned += 50;
-                o.active = false;
-                // Sparkles
-                for(let i=0;i<10;i++) state.particles.push(new Particle(o.x+30, o.y+30, '#ffd700', 'spark'));
-            } else {
-                gameOver();
-            }
-        }
-    });
-    state.objs = state.objs.filter(o => o.y < h+100 && o.active);
-    
-    state.dist += state.speed / 20;
-
-    // Draw Player
-    const skinColor = skins.find(s=>s.id===state.skin)?.color || '#fff';
-    ctx.shadowBlur = 20; ctx.shadowColor = skinColor;
-    ctx.fillStyle = skinColor;
+    // Игрок
+    ctx.fillStyle = '#0ff'; ctx.shadowBlur = 10; ctx.shadowColor = '#0ff';
     ctx.fillRect(player.x, player.y, player.w, player.h);
-    // Windshield
-    ctx.fillStyle = '#000'; ctx.fillRect(player.x+5, player.y+10, player.w-10, 15);
     ctx.shadowBlur = 0;
 
-    // Draw Objects
-    state.objs.forEach(o => {
-        ctx.shadowBlur = 15;
-        if(o.type === 'obstacle') {
-            ctx.shadowColor = '#ff0055'; ctx.fillStyle = '#ff0055';
-            ctx.fillRect(o.x, o.y, o.w, o.h);
-            ctx.strokeStyle = '#000'; ctx.lineWidth = 3;
-            ctx.beginPath(); ctx.moveTo(o.x+10,o.y+10); ctx.lineTo(o.x+50,o.y+50);
-            ctx.moveTo(o.x+50,o.y+10); ctx.lineTo(o.x+10,o.y+50); ctx.stroke();
-        } else {
-            ctx.shadowColor = '#ffd700'; ctx.fillStyle = '#ffd700';
-            ctx.beginPath(); ctx.arc(o.x+30, o.y+30, 25, 0, Math.PI*2); ctx.fill();
-            ctx.fillStyle = '#000'; ctx.font = '20px monospace'; ctx.fillText('💎', o.x+18, o.y+38);
-        }
-        ctx.shadowBlur = 0;
-    });
-
-    // Particles
-    state.particles = state.particles.filter(p => p.life > 0);
-    state.particles.forEach(p => { p.update(); p.draw(); });
-
-    // UI Update
-    document.getElementById('distDisplay').innerText = Math.floor(state.dist);
-    document.getElementById('moneyDisplay').innerText = state.money;
-
-    requestAnimationFrame(gameLoop);
-}
-
-function gameOver() {
-    state.playing = false;
-    state.money += state.earned;
-    saveGame();
-    document.getElementById('finalDist').innerText = Math.floor(state.dist);
-    document.getElementById('earnedMoney').innerText = state.earned;
-    document.getElementById('gameOverMenu').classList.remove('hidden');
-}
-
-function saveGame() {
-    localStorage.setItem('nd_money', state.money);
-    localStorage.setItem('nd_skin', state.skin);
-    localStorage.setItem('nd_upgrades', JSON.stringify(state.upgrades));
-}
-
-// UI Functions
-function showGarage() {
-    document.querySelectorAll('.menu').forEach(m => m.classList.add('hidden'));
-    document.getElementById('garageMenu').classList.remove('hidden');
-    renderGarage();
-}
-
-function showMain() {
-    document.querySelectorAll('.menu').forEach(m => m.classList.add('hidden'));
-    document.getElementById('mainMenu').classList.remove('hidden');
-}
-
-function renderGarage() {
-    document.getElementById('garageMoney').innerText = state.money;
-    
-    // Skins
-    const sList = document.getElementById('skinsList');
-    sList.innerHTML = '';
-    skins.forEach(s => {
-        const div = document.createElement('div');
-        div.className = `skin-card ${state.skin === s.id ? 'active' : ''}`;
-        div.innerHTML = `<div class="skin-preview" style="background:${s.color}; box-shadow:0 0 15px ${s.color}"></div><div style="font-weight:bold">${s.cost===0?'FREE':s.cost+'💰'}</div>`;
-        div.onclick = () => {
-            if(state.money >= s.cost || s.cost === 0) {
-                if(s.cost > 0) state.money -= s.cost;
-                state.skin = s.id;
-                saveGame();
-                renderGarage();
-            }
-        };
-        sList.appendChild(div);
-    });
-
-    // Upgrades
-    const uList = document.getElementById('upgradesList');
-    uList.innerHTML = '';
-    upgrades.forEach(u => {
-        const lvl = state.upgrades[u.id];
-        const cost = Math.floor(u.baseCost * Math.pow(1.8, lvl));
-        const div = document.createElement('div');
-        div.className = 'upg-row';
-        div.innerHTML = `
-            <div>
-                <div class="upg-name">${u.name}</div>
-                <div class="upg-lvl">LVL ${lvl}/${u.max}</div>
-            </div>
-            <button class="btn" style="width:auto; padding:5px 15px; margin:0; font-size:0.8em" 
-                ${lvl>=u.max || state.money<cost ? 'disabled' : ''} 
-                onclick="buyUpgrade('${u.id}', ${cost})">
-                ${lvl>=u.max ? 'MAX' : cost+'💰'}
-            </button>
-        `;
-        uList.appendChild(div);
-    });
-}
-
-function buyUpgrade(id, cost) {
-    if(state.money >= cost) {
-        state.money -= cost;
-        state.upgrades[id]++;
-        saveGame();
-        renderGarage();
+    // Препятствия и монеты
+    if(Math.random() < 0.05) {
+        objs.push({ x: Math.random()*(w-50), y: -50, type: Math.random()>0.3?'enemy':'coin' });
     }
-}
 
-// Init
-saveGame(); // Load on start
+    objs.forEach((o, i) => {
+        o.y += speed;
+        ctx.fillStyle = o.type === 'enemy' ? '#f05' : '#ff0';
+        ctx.fillRect(o.x, o.y, 50, 50);
+        
+        // Столкновение
+        if(player.x < o.x+50 && player.x+player.w > o.x && player.y < o.y+50 && player.y+player.h > o.y) {
+            if(o.type === 'coin') { score += 10; objs.splice(i,1); }
+            else { playing = false; document.getElementById('menu').style.display = 'block'; }
+        }
+        if(o.y > h) objs.splice(i,1);
+    });
+
+    speed += 0.01;
+    document.getElementById('score').innerText = score;
+    requestAnimationFrame(loop);
+}
 </script>
 </body>
 </html>
