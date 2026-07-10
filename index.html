@@ -2,268 +2,88 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NEON DRIFT: DATA RUNNER v1.2</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ROM'S GAME HUB</title>
     <style>
-        :root { --bg: #050505; --accent: #00ff9d; --warn: #ff0055; --data: #00ccff; --text: #fff; }
-        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
-        body { background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; height: 100vh; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+        :root { --bg: #f1f5f9; --sidebar: #ffffff; --text: #0f172a; --accent: #3b82f6; --active: #eff6ff; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background: var(--bg); height: 100vh; display: flex; overflow: hidden; }
         
-        .crt::before { content: " "; display: block; position: absolute; inset: 0; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06)); z-index: 2; background-size: 100% 2px, 3px 100%; pointer-events: none; animation: flicker 0.15s infinite; }
-        @keyframes flicker { 0% { opacity: 0.97; } 50% { opacity: 1; } 100% { opacity: 0.98; } }
-
-        canvas { position: absolute; top: 0; left: 0; z-index: 1; }
+        /* Sidebar */
+        .sidebar { width: 280px; background: var(--sidebar); border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; padding: 20px; z-index: 10; box-shadow: 2px 0 10px rgba(0,0,0,0.02); }
+        .logo { font-size: 1.5em; font-weight: 800; color: var(--text); margin-bottom: 30px; padding-left: 10px; border-left: 4px solid var(--accent); }
         
-        .ui-layer { position: relative; z-index: 10; width: 100%; max-width: 600px; height: 100%; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; pointer-events: none; }
-        .hud-top { display: flex; justify-content: space-between; font-size: 1.2em; font-weight: bold; text-shadow: 0 0 10px currentColor; }
-        .score-val { color: var(--accent); }
-        .data-val { color: var(--data); }
+        .menu-item { padding: 15px; margin-bottom: 10px; border-radius: 10px; cursor: pointer; transition: 0.2s; color: #64748b; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+        .menu-item:hover { background: #f8fafc; color: var(--text); }
+        .menu-item.active { background: var(--active); color: var(--accent); border-left: 3px solid var(--accent); }
         
-        .center-msg { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; pointer-events: auto; background: rgba(5,5,5,0.95); padding: 40px; border: 1px solid #333; box-shadow: 0 0 30px rgba(0,0,0,0.8); }
-        .btn-start { background: transparent; border: 2px solid var(--accent); color: var(--accent); padding: 15px 40px; font-size: 1.5em; font-family: inherit; cursor: pointer; transition: 0.2s; text-transform: uppercase; letter-spacing: 3px; box-shadow: 0 0 20px rgba(0,255,157,0.2); margin-top: 20px; }
-        .btn-start:hover { background: var(--accent); color: #000; box-shadow: 0 0 40px rgba(0,255,157,0.6); }
-
-        .controls-hint { text-align: center; font-size: 0.8em; color: #555; margin-bottom: 20px; opacity: 0.7; }
-        .mobile-controls { display: none; grid-template-columns: 1fr 1fr; gap: 20px; width: 100%; height: 120px; pointer-events: auto; position: absolute; bottom: 20px; }
-        .m-btn { border: 2px solid var(--accent); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 2em; font-weight: bold; opacity: 0.6; background: rgba(0,255,157,0.05); transition: 0.1s; }
-        .m-btn:active { transform: scale(0.95); opacity: 1; background: var(--accent); color: #000; }
-
+        /* Main Area */
+        .main-content { flex: 1; position: relative; background: #000; }
+        iframe { width: 100%; height: 100%; border: none; display: block; }
+        
+        /* Placeholder for broken games */
+        .placeholder { position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--bg); color: var(--text); z-index: 5; }
+        .hidden { display: none; }
+        
         @media (max-width: 768px) {
-            .controls-hint { display: none; }
-            .mobile-controls { display: grid; }
+            body { flex-direction: column; }
+            .sidebar { width: 100%; height: auto; flex-direction: row; overflow-x: auto; padding: 10px; border-bottom: 1px solid #e2e8f0; border-right: none; }
+            .logo { display: none; }
+            .menu-item { white-space: nowrap; margin-bottom: 0; margin-right: 10px; }
         }
     </style>
 </head>
-<body class="crt">
+<body>
 
-<canvas id="gameCanvas"></canvas>
-
-<div class="ui-layer">
-    <div class="hud-top">
-        <div>DIST: <span class="score-val" id="distDisplay">0m</span></div>
-        <div>DATA: <span class="data-val" id="dataDisplay">0 PKT</span></div>
+<div class="sidebar">
+    <div class="logo">ROM'S HUB</div>
+    
+    <div class="menu-item active" onclick="loadGame('https://romasaf220-art.github.io/-/', this)">
+        🔥 THE LEGEND (-/)
     </div>
-
-    <div class="center-msg" id="startScreen">
-        <h1 style="font-size: 2em; margin-bottom: 10px; text-shadow: 0 0 20px var(--accent);">NEON DRIFT v1.2</h1>
-        <p style="margin-bottom: 10px; color: #aaa;">COLLECT DATA PACKETS. AVOID FIREWALLS.</p>
-        <p style="margin-bottom: 20px; font-size: 0.8em; color: #666;">USE [←] [→] ARROWS OR TAP SIDES</p>
-        <button class="btn-start" onclick="startGame()">START ENGINE</button>
+    
+    <div class="menu-item" onclick="loadGame('https://romasaf220-art.github.io/-224/', this)">
+        💻 CYBER-IDLE v3.0
     </div>
-
-    <div class="center-msg" id="gameOverScreen" style="display: none;">
-        <h1 style="font-size: 2em; margin-bottom: 10px; color: var(--warn); text-shadow: 0 0 20px var(--warn);">SYSTEM CRASH</h1>
-        <p style="margin-bottom: 10px;">DISTANCE: <span id="finalDist" style="color:var(--accent)">0m</span></p>
-        <p style="margin-bottom: 10px;">DATA COLLECTED: <span id="finalData" style="color:var(--data)">0 PKT</span></p>
-        <p style="margin-bottom: 20px; font-size: 0.9em; color:#aaa;">BEST DIST: <span id="bestDist">0m</span></p>
-        <button class="btn-start" onclick="startGame()">REBOOT SYSTEM</button>
-    </div>
-
-    <div class="mobile-controls">
-        <div class="m-btn" ontouchstart="input.left=true" ontouchend="input.left=false">◀ STEER</div>
-        <div class="m-btn" ontouchstart="input.right=true" ontouchend="input.right=false">STEER ▶</div>
+    
+    <div class="menu-item" onclick="showPlaceholder('Neon Drift')">
+        🏎️ NEON DRIFT
     </div>
 </div>
 
+<div class="main-content">
+    <div id="placeholderScreen" class="placeholder hidden">
+        <h2 id="phTitle">Выберите игру</h2>
+        <p style="color: #64748b; margin-top: 10px;">Нажмите на проект в меню слева</p>
+    </div>
+    <iframe id="gameFrame" src="" allow="fullscreen"></iframe>
+</div>
+
 <script>
-/** NEON DRIFT ENGINE v1.2 - FIXED CRASH & SPAWN LOGIC **/
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-let width, height;
-
-// Game State
-let state = {
-    isPlaying: false,
-    dist: 0,
-    dataCollected: 0,
-    speed: 0,
-    baseSpeed: 5, // Even slower start for better control
-    maxSpeed: 15,
-    bestDist: parseInt(localStorage.getItem('neon_drift_best') || '0'),
-    obstacles: [],
-    particles: [],
-    roadOffset: 0,
-    frameCount: 0
-};
-
-const input = { left: false, right: false };
-
-// Car Physics
-const car = { x: 0, y: 0, vx: 0, width: 40, height: 60 };
-
-function resize() {
-    width = window.innerWidth;
-    height = window.innerHeight;
-    canvas.width = width;
-    canvas.height = height;
-    car.x = width / 2 - car.width / 2;
-    car.y = height * 0.75;
-}
-window.addEventListener('resize', resize);
-resize();
-
-document.addEventListener('keydown', e => {
-    if (e.key === 'ArrowLeft') input.left = true;
-    if (e.key === 'ArrowRight') input.right = true;
-});
-document.addEventListener('keyup', e => {
-    if (e.key === 'ArrowLeft') input.left = false;
-    if (e.key === 'ArrowRight') input.right = false;
-});
-
-// Particle System
-class Particle {
-    constructor(x, y, c) {
-        this.x = x; this.y = y; this.c = c;
-        this.life = 1.0; this.size = Math.random() * 3 + 1;
-        this.vx = (Math.random() - 0.5) * 2;
-        this.vy = (Math.random() - 0.5) * 2;
-    }
-    update() { this.x += this.vx; this.y += this.vy; this.life -= 0.03; this.size *= 0.95; }
-    draw() {
-        ctx.globalAlpha = this.life; ctx.fillStyle = this.c;
-        ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill();
-        ctx.globalAlpha = 1;
-    }
-}
-
-function spawnTrail(x, y) { state.particles.push(new Particle(x, y, '#00ff9d')); }
-function spawnDataEffect(x, y) { for(let i=0; i<8; i++) state.particles.push(new Particle(x, y, '#00ccff')); }
-function spawnCrashEffect(x, y) { for(let i=0; i<20; i++) state.particles.push(new Particle(x, y, '#ff0055')); }
-
-// Objects
-class GameObject {
-    constructor(type) {
-        this.w = 50; this.h = 50;
-        this.x = Math.random() * (width - this.w);
-        this.y = -100;
-        this.type = type; // 'firewall' or 'data'
-        this.active = true;
-    }
-    update() { 
-        if (!this.active) return;
-        this.y += state.speed; 
-    }
-    draw() {
-        if (!this.active) return;
-        ctx.shadowBlur = 15;
-        if (this.type === 'firewall') {
-            ctx.shadowColor = '#ff0055'; ctx.fillStyle = '#ff0055';
-            ctx.fillRect(this.x, this.y, this.w, this.h);
-            // X mark
-            ctx.strokeStyle = '#000'; ctx.lineWidth = 3;
-            ctx.beginPath(); ctx.moveTo(this.x+10, this.y+10); ctx.lineTo(this.x+40, this.y+40);
-            ctx.moveTo(this.x+40, this.y+10); ctx.lineTo(this.x+10, this.y+40); ctx.stroke();
-        } else {
-            ctx.shadowColor = '#00ccff'; ctx.fillStyle = '#00ccff';
-            ctx.beginPath(); ctx.arc(this.x + 25, this.y + 25, 20, 0, Math.PI*2); ctx.fill();
-            ctx.fillStyle = '#fff'; ctx.font = '20px monospace'; ctx.fillText('💾', this.x+12, this.y+32);
-        }
-        ctx.shadowBlur = 0;
-    }
-}
-
-function gameLoop() {
-    if (!state.isPlaying) return; // HARD STOP on death
-
-    state.frameCount++;
-
-    // Clear with trail
-    ctx.fillStyle = 'rgba(5, 5, 5, 0.3)';
-    ctx.fillRect(0, 0, width, height);
-
-    // Road Lines
-    state.roadOffset = (state.roadOffset + state.speed) % 80;
-    ctx.strokeStyle = '#222'; ctx.lineWidth = 4; ctx.setLineDash([40, 40]);
-    ctx.lineDashOffset = -state.roadOffset;
-    ctx.beginPath(); ctx.moveTo(width/2, 0); ctx.lineTo(width/2, height); ctx.stroke();
-    ctx.setLineDash([]);
-
-    // Car Physics
-    if (input.left) car.vx -= 0.6;
-    if (input.right) car.vx += 0.6;
-    car.vx *= 0.92; // Friction
-    car.x += car.vx;
-
-    // Boundaries
-    if (car.x < 0) { car.x = 0; car.vx = -car.vx * 0.5; } 
-    if (car.x > width - car.width) { car.x = width - car.width; car.vx = -car.vx * 0.5; }
-
-    // Speed & Distance
-    if (state.speed < state.maxSpeed) state.speed += 0.005;
-    state.dist += state.speed / 20;
-
-    // Drift Trail
-    if (Math.abs(car.vx) > 1.5) { spawnTrail(car.x + 10, car.y + 50); spawnTrail(car.x + 30, car.y + 50); }
-
-    // Draw Car
-    ctx.save();
-    ctx.translate(car.x + 20, car.y + 30);
-    ctx.rotate(car.vx * 0.05);
-    ctx.fillStyle = '#fff'; ctx.shadowBlur = 20; ctx.shadowColor = '#fff';
-    ctx.fillRect(-20, -30, 40, 60);
-    ctx.fillStyle = '#00ff9d'; ctx.fillRect(-15, -20, 30, 15);
-    ctx.restore();
-
-    // Spawning Objects (Fixed Logic)
-    if (state.frameCount % 40 === 0) { // Spawn every 40 frames
-        const type = Math.random() > 0.3 ? 'firewall' : 'data';
-        state.obstacles.push(new GameObject(type));
-    }
-
-    // Update Objects
-    state.obstacles = state.obstacles.filter(o => o.y < height + 100 && o.active);
-    state.obstacles.forEach(o => {
-        o.update(); o.draw();
+    function loadGame(url, element) {
+        // Update UI
+        document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
+        if(element) element.classList.add('active');
         
-        // Collision Logic
-        if (o.active && car.x < o.x + o.w && car.x + car.width > o.x && car.y < o.y + o.h && car.y + car.height > o.y) {
-            if (o.type === 'data') {
-                state.dataCollected++;
-                spawnDataEffect(o.x + 25, o.y + 25);
-                o.active = false; // Remove object
-            } else {
-                spawnCrashEffect(car.x + 20, car.y + 30);
-                gameOver();
-            }
-        }
-    });
-
-    // Particles
-    state.particles = state.particles.filter(p => p.life > 0);
-    state.particles.forEach(p => { p.update(); p.draw(); });
-
-    // UI
-    document.getElementById('distDisplay').innerText = Math.floor(state.dist) + 'm';
-    document.getElementById('dataDisplay').innerText = state.dataCollected + ' PKT';
-
-    requestAnimationFrame(gameLoop);
-}
-
-function startGame() {
-    state = {
-        isPlaying: true, dist: 0, dataCollected: 0, speed: state.baseSpeed,
-        maxSpeed: 14, bestDist: state.bestDist, obstacles: [], particles: [], roadOffset: 0, frameCount: 0
-    };
-    car.x = width / 2 - 20; car.vx = 0;
-    document.getElementById('startScreen').style.display = 'none';
-    document.getElementById('gameOverScreen').style.display = 'none';
-    gameLoop();
-}
-
-function gameOver() {
-    state.isPlaying = false; // This stops the loop immediately
-    if (state.dist > state.bestDist) {
-        state.bestDist = state.dist;
-        localStorage.setItem('neon_drift_best', state.bestDist.toString());
+        // Hide placeholder and load game
+        document.getElementById('placeholderScreen').classList.add('hidden');
+        document.getElementById('gameFrame').src = url;
     }
-    document.getElementById('finalDist').innerText = Math.floor(state.dist) + 'm';
-    document.getElementById('finalData').innerText = state.dataCollected + ' PKT';
-    document.getElementById('bestDist').innerText = Math.floor(state.bestDist) + 'm';
-    document.getElementById('gameOverScreen').style.display = 'block';
-}
 
-document.getElementById('bestDist').innerText = Math.floor(state.bestDist) + 'm';
+    function showPlaceholder(name) {
+        document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
+        document.getElementById('gameFrame').src = "";
+        const ph = document.getElementById('placeholderScreen');
+        ph.classList.remove('hidden');
+        document.getElementById('phTitle').innerText = name + " (В разработке)";
+    }
+
+    // Load first game by default
+    window.onload = () => {
+        const firstBtn = document.querySelector('.menu-item');
+        if(firstBtn) firstBtn.click();
+    }
 </script>
+
 </body>
 </html>
